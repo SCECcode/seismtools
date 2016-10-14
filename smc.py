@@ -124,6 +124,9 @@ def load_smc_v2(filename):
         print(e)
         return False
 
+    # Print status message
+    print("[READING]: %s..." % (filename))
+
     # Read data
     channels = fp.read()
     fp.close()
@@ -160,14 +163,28 @@ def load_smc_v2(filename):
         location_longi = tmp[4]
         depth = 0.0
 
-        # get orientation, convert to int if it's digit
-        tmp = channels[i][7].split()
-        orientation = tmp[2]
-        if orientation.isdigit():
-            orientation = int(orientation)
-        elif orientation.upper() not in ["UP", "DOWN"]:
-            print("[ERROR]: Invalid orientation!")
-            return False
+        # Make sure we captured the right values
+        if location_lati[-1].upper() != "N" and location_lati.upper() != "S":
+            # Maybe it is an old file, let's try to get the values again...
+            location_lati = float(tmp[3]) + (float(tmp[4]) / 60.0) + (float(tmp[5][:-2]) / 3600.0)
+            location_lati = "%s%s" % (str(location_lati), tmp[5][-2])
+            location_longi = float(tmp[6]) + (float(tmp[7]) / 60.0) + (float(tmp[8][:-1]) / 3600.0)
+            location_longi = "%s%s" % (str(location_longi), tmp[8][-1])
+
+        # Get orientation from integer header
+        orientation = int(channels[i][26][50:55])
+        if orientation == 500:
+            orientation = "Up"
+        elif orientation == 600:
+            orientation = "Down"
+        # tmp = channels[i][7].split()
+        # orientation = tmp[2]
+        #if orientation.isdigit():
+        #    orientation = int(orientation)
+        #elif orientation.upper() not in ["UP", "DOWN"]:
+        #    print("[ERROR]: Invalid orientation!")
+        #    return False
+
         # location = channels[i][7][36:].strip()
 
         # if 'Depth' in location:
@@ -181,15 +198,33 @@ def load_smc_v2(filename):
 
         # get date and time; set to fixed format
         start_time = channels[i][4][37:80].split()
-        date = start_time[2][:-1]
+        try:
+            date = start_time[2][:-1]
 
-        tmp = channels[i][26].split()
-        hour = tmp[0]
-        minute = tmp[1]
-        seconds = tmp[2]
-        # fraction = tmp[4]
-        fraction = tmp[3]
-        tzone = channels[i][4].split()[-2]
+            tmp = start_time[3].split(':')
+            hour = tmp[0]
+            minute = tmp[1]
+            seconds, fraction = tmp[2].split('.')
+
+            # Works for both newer and older V2 files
+            tzone = channels[i][4].split()[5]
+        except IndexError:
+            date = '00/00/00'
+            hour = '00'
+            minute = '00'
+            seconds = '00'
+            fraction = '0'
+            tzone = '---'
+
+        # Works for newer seismograms but not old ones
+        # tmp = channels[i][26].split()
+        # hour = tmp[0]
+        # minute = tmp[1]
+        # seconds = tmp[2]
+        # fraction = tmp[3]
+        # tzone = channels[i][4].split()[-2]
+
+        # Put it all together
         time = "%s:%s:%s.%s %s" % (hour, minute, seconds, fraction, tzone)
 
         # get number of samples and dt
@@ -204,13 +239,13 @@ def load_smc_v2(filename):
         d_signal = str()
         for s in tmp:
             # detecting separate line and get data type
-            if "points" in s:
+            if "points" in s.lower():
                 line = s.split()
-                if line[3] == "accel":
+                if line[3].lower() == "accel" or line[3].lower() == "acc":
                     dtype = 'a'
-                elif line[3] == "veloc":
+                elif line[3].lower() == "veloc" or line[3].lower() == "vel":
                     dtype = 'v'
-                elif line[3] == "displ":
+                elif line[3].lower() == "displ" or line[3].lower() == "dis":
                     dtype = 'd'
                 else:
                     dtype = "Unknown"
@@ -270,7 +305,7 @@ def print_smc(station):
             orientation = 'N'
         elif record.orientation in [90, -90, 270, -270]:
             orientation = 'E'
-        elif record.orientation in ['Up', 'Down']:
+        elif record.orientation.upper() in ['UP', 'DOWN']:
             orientation = 'Z'
 
         filename = "%s.%s.%s.txt" % (station.network, station.id,
@@ -295,8 +330,8 @@ def print_smc(station):
             for d in np.nditer(record.accel):
                 f.write(descriptor.format(float(d)))
         f.close()
-        print("*Generated .txt file at: %s" %
-              (os.path.join(destination, filename)))
+        #print("*Generated .txt file at: %s" %
+        #      (os.path.join(destination, filename)))
 #end of print_smc
 
 def print_bbp(station):
@@ -305,7 +340,7 @@ def print_bbp(station):
     each of velocity/acceleration/displacement
     """
 
-    filename_base = "%s.%s.%s" % (station.network, station.id, station.type)
+    filename_base = "%s_%s.%s" % (station.network, station.id, station.type)
 
     # round data to 7 decimals in order to print properly
     for precord in station.list:
@@ -317,7 +352,7 @@ def print_bbp(station):
             dis_ew = precord.displ.tolist()
             vel_ew = precord.velo.tolist()
             acc_ew = precord.accel.tolist()
-        elif precord.orientation == "Up" or precord.orientation == "Down":
+        elif precord.orientation.upper() == "UP" or precord.orientation.upper() == "DOWN":
             dis_up = precord.displ.tolist()
             vel_up = precord.velo.tolist()
             acc_up = precord.accel.tolist()
@@ -369,8 +404,8 @@ def print_bbp(station):
 
         # All done, close file
         out_fp.close()
-        print("*Generated .bbp file at: %s" %
-              (os.path.join(destination, filename)))
+        #print("*Generated .bbp file at: %s" %
+        #      (os.path.join(destination, filename)))
 
 def print_her(station):
     """

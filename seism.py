@@ -304,7 +304,7 @@ class seism_record(seism_signal):
                 self.data = self.data*-1
                 self.orientation += 180
 
-                if self.orientation > 360:
+                while self.orientation > 360:
                     self.orientation -= 360
 
             else:
@@ -312,9 +312,9 @@ class seism_record(seism_signal):
                 return True
 
         elif isinstance(self.orientation, str):
-            if self.orientation == 'Up':
+            if self.orientation.upper() == 'UP':
                 pass
-            elif self.orientation == 'Down':
+            elif self.orientation.upper() == 'DOWN':
                 self.data = self.data*-1
                 self.orientation = 'Up'
             else:
@@ -635,60 +635,84 @@ class seism_station(object):
         The function is to transfrom data for
         channels with special orientations.
         """
+        remain = []
         tmp = []
         for record in record_list:
-            if record.orientation != 'Up':
+            if isinstance(record.orientation, str) and record.orientation.upper() == "UP":
+                remain.append(record)
+            else:
                 tmp.append(record)
-                record_list.remove(record)
+        # Back to record_list
+        record_list = remain
+
         if len(tmp) != 2:
             # Couldn't find two channels to rotate
             return False
+
+        # Figure out how to rotate
         x = tmp[0].orientation
         y = tmp[1].orientation
 
-        if abs(x-y) != 90:
+        angle = abs(x-y)
+        if angle != 90 and angle != 270:
             # We need two orthogonal channels
             return False
 
-        if x > y:
-            list(reversed(tmp))
+        if angle == 90:
+            rotation_angle = min(x, y)
+        else:
+            rotation_angle = man(x, y)
+
+        #if x > y:
+        #    list(reversed(tmp))
+
+        # Create rotation matrix
+        matrix = np.array([(math.cos(math.radians(rotation_angle)),
+                            -math.sin(math.radians(rotation_angle))),
+                           (math.sin(math.radians(rotation_angle)),
+                            math.cos(math.radians(rotation_angle)))])
 
         if flag == 'v1':
+            # Make sure they all have the same number of points
+            if len(tmp[0].data) != len(tmp[1].data):
+                n_points = min(len(tmp[0].data), len(tmp[1].data))
+                tmp[0].data = tmp[0].data[0:n_points-1]
+                tmp[1].data = tmp[1].data[0:n_points-1]
             # rotate
-            matrix = np.array([(math.cos(math.radians(x)),
-                                -math.sin(math.radians(x))),
-                               (math.sin(math.radians(x)),
-                                math.cos(math.radians(x)))])
             data = matrix.dot([tmp[0].data, tmp[1].data])
 
             # transform the first record with North orientation
             tmp[0].data = data[0]
-            tmp[0].orientation = 0
-
             # transform the second record with East orientation
             tmp[1].data = data[1]
-            tmp[1].orientation = 90
-
-            record_list += tmp
-            return record_list
 
         if flag == 'v2':
-            matrix = np.array([(math.cos(math.radians(x)),
-                                -math.sin(math.radians(x))),
-                               (math.sin(math.radians(x)),
-                                math.cos(math.radians(x)))])
+            # Make sure they all have the same number of points
+            if len(tmp[0].accel) != len(tmp[1].accel):
+                n_points = min(len(tmp[0].accel), len(tmp[1].accel))
+                tmp[0].accel = tmp[0].accel[0:n_points-1]
+                tmp[1].accel = tmp[1].accel[0:n_points-1]
+            if len(tmp[0].velo) != len(tmp[1].velo):
+                n_points = min(len(tmp[0].velo), len(tmp[1].velo))
+                tmp[0].velo = tmp[0].velo[0:n_points-1]
+                tmp[1].velo = tmp[1].velo[0:n_points-1]
+            if len(tmp[0].displ) != len(tmp[1].displ):
+                n_points = min(len(tmp[0].displ), len(tmp[1].displ))
+                tmp[0].displ = tmp[0].displ[0:n_points-1]
+                tmp[1].displ = tmp[1].displ[0:n_points-1]
+            # Rotate
             [tmp[0].accel, tmp[1].accel] = matrix.dot([tmp[0].accel,
                                                        tmp[1].accel])
             [tmp[0].velo, tmp[1].velo] = matrix.dot([tmp[0].velo,
                                                      tmp[1].velo])
-            [tmp[0].disp, tmp[1].disp] = matrix.dot([tmp[0].displ,
+            [tmp[0].displ, tmp[1].displ] = matrix.dot([tmp[0].displ,
                                                      tmp[1].displ])
 
-            tmp[0].orientation = 0
-            tmp[1].orientation = 90
+        tmp[0].orientation = 0
+        tmp[1].orientation = 90
 
-            record_list += tmp
-            return record_list
+        record_list += tmp
+        return record_list
 
     # end of rotate
 
@@ -703,22 +727,23 @@ class seism_station(object):
 
         for record in self.list:
             # process data of record
-            # if not record.orientation:
-            #     print record.orientation
-            #     print "[ERROR]: invalid orientation."
-            #     return False
-
-
+            flag = record.process_ori()
             # reverse the data by orientation
-            if record.process_ori() == True:
+            if flag == False:
+                return False
+            elif flag == True:
                 # if encounter special orientations.
                 rotate_flag = True
-                break
-            elif record.process_ori() == False:
-                # if encouter invalid orientations.
-                return False
 
-            # record.convert() # convert the unit of data
+        # Rotation if needed
+        if rotate_flag:
+            record_list = self.rotate(self.list, 'v1')
+            if not record_list:
+                return False
+            else:
+                self.list = record_list
+
+        for record in self.list:
             correct_baseline(record)
             scale_signal(record, 981)
 
@@ -750,16 +775,6 @@ class seism_station(object):
                                         latitude=record.location_lati,
                                         longitude=record.location_longi)
                 precord_list.append(precord)
-
-        # rotation
-        if rotate_flag:
-            record_list = self.rotate(self.list, 'v1')
-            if not record_list:
-                return False
-            else:
-                self.list = record_list
-            # recursively calling the function to continue processing
-            return self.process_v1()
 
         self.list = precord_list
         return True

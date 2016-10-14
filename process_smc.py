@@ -95,7 +95,13 @@ def read_list(file_list, output_format):
                     print_message(cur_file, 'unprocessed')
                 else:
                     print_smc(station)
-                    print_her(station)
+                    if output_format == 'her':
+                        print_her(station)
+                    elif output_format == 'bbp':
+                        print_bbp(station)
+                    else:
+                        print("Error: Unknown output format: %s!" %
+                              (output_format))
                     check_station(station)
 
             # if the file is V2/processed data file; generate text file
@@ -116,7 +122,7 @@ def read_list(file_list, output_format):
                     elif output_format == 'bbp':
                         print_bbp(station)
                     else:
-                        print("Error: Unknown output format %s!" %
+                        print("Error: Unknown output format: %s!" %
                               (output_format))
                     check_station(station)
 

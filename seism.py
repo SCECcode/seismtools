@@ -661,7 +661,7 @@ class seism_station(object):
         if angle == 90:
             rotation_angle = min(x, y)
         else:
-            rotation_angle = man(x, y)
+            rotation_angle = max(x, y)
 
         #if x > y:
         #    list(reversed(tmp))

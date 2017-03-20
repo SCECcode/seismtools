@@ -649,28 +649,40 @@ class seism_station(object):
             # Couldn't find two channels to rotate
             return False
 
+        # Make sure channels are ordered properly
+        if tmp[0].orientation > tmp[1].orientation:
+            # Swap channels
+            temp = tmp[0]
+            tmp[0] = tmp[1]
+            tmp[1] = temp
+
         # Figure out how to rotate
         x = tmp[0].orientation
         y = tmp[1].orientation
 
-        angle = abs(x-y)
-        if angle != 90 and angle != 270:
-            # We need two orthogonal channels
+        # Calculate angle between two components
+        angle = y - x
+        # print("Angle = %d" % (angle))
+
+        # We need two orthogonal channels
+        if abs(angle) != 90 and abs(angle) != 270:
             return False
 
-        if angle == 90:
-            rotation_angle = min(x, y)
-        else:
-            rotation_angle = max(x, y)
-
-        #if x > y:
-        #    list(reversed(tmp))
+        # Always pick the smaller angle for rotation
+        rotation_angle = min(x, y)
 
         # Create rotation matrix
-        matrix = np.array([(math.cos(math.radians(rotation_angle)),
-                            -math.sin(math.radians(rotation_angle))),
-                           (math.sin(math.radians(rotation_angle)),
-                            math.cos(math.radians(rotation_angle)))])
+        if angle == 90:
+            matrix = np.array([(math.cos(math.radians(rotation_angle)),
+                                -math.sin(math.radians(rotation_angle))),
+                               (math.sin(math.radians(rotation_angle)),
+                                math.cos(math.radians(rotation_angle)))])
+        else:
+            # Angle is 270!
+            matrix = np.array([(math.cos(math.radians(rotation_angle)),
+                                +math.sin(math.radians(rotation_angle))),
+                               (math.sin(math.radians(rotation_angle)),
+                                -math.cos(math.radians(rotation_angle)))])
 
         if flag == 'v1':
             # Make sure they all have the same number of points
@@ -785,24 +797,12 @@ class seism_station(object):
         Checks records from V2 files; rotate if necessary so the
         horizontal channels end up N/S and E/W
         """
-        rotate_flag = False
-        for record in self.list:
-            if (isinstance(record.orientation, int)) \
-                and (record.orientation not in [0, 360, 180, -180,
-                                                90, 270, -90, -270]):
-                rotate_flag = True
-                break
+        record_list = self.rotate(self.list, 'v2')
+        if not record_list:
+            return False
 
-        if rotate_flag:
-            record_list = self.rotate(self.list, 'v2')
-            if not record_list:
-                return False
-            else:
-                self.list = record_list
-                return True
-        else:
-            # rotation not needed
-            return True
+        self.list = record_list
+        return True
     # end of process_v2
 
 #end station class

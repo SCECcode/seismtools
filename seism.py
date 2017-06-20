@@ -734,26 +734,18 @@ class seism_station(object):
         then use their data to all three types of data (acc, vel, dis),
         then return a list of precords.
         """
-        rotate_flag = False
         precord_list = []
 
         for record in self.list:
             # process data of record
-            flag = record.process_ori()
-            # reverse the data by orientation
-            if flag == False:
+            if record.process_ori() == False:
                 return False
-            elif flag == True:
-                # if encounter special orientations.
-                rotate_flag = True
 
         # Rotation if needed
-        if rotate_flag:
-            record_list = self.rotate(self.list, 'v1')
-            if not record_list:
-                return False
-            else:
-                self.list = record_list
+        record_list = self.rotate(self.list, 'v1')
+        if not record_list:
+            return False
+        self.list = record_list
 
         for record in self.list:
             correct_baseline(record)

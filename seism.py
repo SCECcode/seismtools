@@ -641,7 +641,11 @@ class seism_station(object):
             if isinstance(record.orientation, str) and record.orientation.upper() == "UP":
                 remain.append(record)
             else:
-                tmp.append(record)
+                if isinstance(orientation, int) and orientation <= 360 and orientation >= 0:
+                    tmp.append(record)
+                else:
+                    # Invalid orientation
+                    return False
         # Back to record_list
         record_list = remain
 

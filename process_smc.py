@@ -6,13 +6,10 @@
 # ==========================================================================
 """
 from __future__ import print_function
-import sys
 import os
-from smc import set_destination, load_smc_v1, load_smc_v2, \
-                print_smc, print_her, print_bbp
+import sys
+from smc import load_smc_v1, load_smc_v2, print_smc, print_her, print_bbp
 from seism import seism_station
-
-destination = ''
 
 def get_parameters():
     """
@@ -22,28 +19,30 @@ def get_parameters():
     """
     file_list = []
     output_format = ''
-    global destination
+    destination = ''
 
     # Check if user provided any parameters
-    if len(sys.argv) >= 2:
+    if len(sys.argv) == 4:
         output_format = sys.argv[1]
-    if len(sys.argv) >= 3:
         destination = sys.argv[2]
-    if len(sys.argv) >= 4:
         file_list = sys.argv[3:]
+    elif len(sys.argv) == 1:
+        # Get the output format the user wants
+        while output_format != 'bbp' and output_format != 'her':
+            output_format = raw_input('== Enter output format (bbp/her): ')
+            output_format = output_format.lower()
 
-    # Get the output format the user wants
-    while output_format != 'bbp' and output_format != 'her':
-        output_format = raw_input('== Enter output format (bbp/her): ')
-        output_format = output_format.lower()
+        while not file_list:
+            # ask user if filename is not provided in command-line
+            file_list = raw_input('== Enter the file / directory name: ')
+            file_list = file_list.split()
 
-    while not file_list:
-        # ask user if filename is not provided in command-line
-        file_list = raw_input('== Enter the file / directory name: ')
-        file_list = file_list.split()
-
-    while not destination:
-        destination = raw_input('== Enter name of the directory to store outputs: ')
+        while not destination:
+            destination = raw_input('== Enter name of the directory to store outputs: ')
+    else:
+        print("Usage: %s output_format destination_directory input_file/directory" %
+              (os.path.basename(sys.argv[0])))
+        sys.exit(-1)
     # check existence of target directory
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -54,14 +53,11 @@ def get_parameters():
         if os.path.exists(os.path.join(destination, 'warning.txt')):
             clear(os.path.join(destination, 'warning.txt'))
 
-    # Set destination in smc module
-    set_destination(destination)
-
     # All done!
-    return file_list, output_format
+    return destination, file_list, output_format
 # end of get_filename
 
-def read_list(file_list, output_format):
+def read_list(destination, file_list, output_format):
     """
     The function is to read a list of files/directory and check their
     types to call corresponding functions.
@@ -80,53 +76,50 @@ def read_list(file_list, output_format):
         elif os.path.isfile(cur_file) and os.stat(cur_file).st_size != 0:
             # if the file is V1/raw data file: generate text file
             # for acceleration, and .her file
-            if cur_file.upper().endswith(".V1") \
-               or cur_file.upper().endswith(".RAW"):
-                processed = False
+            if (cur_file.upper().endswith(".V1")
+                or cur_file.upper().endswith(".RAW")):
+
+                # Read V1 file
                 station = load_smc_v1(cur_file)
 
-                # if encounters errors with records in station
-                if (not station) or (not station.list):
-                    station = False
-                else:
-                    processed = station.process_v1()
-
-                if not processed:
-                    print_message(cur_file, 'unprocessed')
-                else:
-                    print_smc(station)
-                    if output_format == 'her':
-                        print_her(station)
-                    elif output_format == 'bbp':
-                        print_bbp(station)
+                # Check we have valid results
+                if station and station.list:
+                    if station.process_v1():
+                        print_smc(destination, station)
+                        if output_format == 'her':
+                            print_her(destination, station)
+                        elif output_format == 'bbp':
+                            print_bbp(destination, station)
+                        else:
+                            print("Error: Unknown output format: %s!" %
+                                  (output_format))
+                        check_station(destination, station)
                     else:
-                        print("Error: Unknown output format: %s!" %
-                              (output_format))
-                    check_station(station)
+                        print_message(destination, cur_file, 'unprocessed')
 
             # if the file is V2/processed data file; generate text file
             # for acceleration, and .her file
             elif cur_file.upper().endswith(".V2"):
-                processed = False
+
+                # Read V2 file
                 station = load_smc_v2(cur_file)
 
-                if station:
-                    processed = station.process_v2() #rotate
-
-                if not processed:
-                    print_message(cur_file, 'unprocessed')
-                else:
-                    print_smc(station)
-                    if output_format == 'her':
-                        print_her(station)
-                    elif output_format == 'bbp':
-                        print_bbp(station)
+                # Check we have valid results
+                if station and station.list:
+                    if station.process_v2():
+                        print_smc(destination, station)
+                        if output_format == 'her':
+                            print_her(destination, station)
+                        elif output_format == 'bbp':
+                            print_bbp(destination, station)
+                        else:
+                            print("Error: Unknown output format: %s!" %
+                                  (output_format))
+                        check_station(destination, station)
                     else:
-                        print("Error: Unknown output format: %s!" %
-                              (output_format))
-                    check_station(station)
-
+                        print_message(destination, cur_file, 'unprocessed')
             else:
+                # Maybe we have a filelist, try to process it...
                 try:
                     input_file = open(cur_file)
                 except IOError as err:
@@ -145,7 +138,7 @@ def read_list(file_list, output_format):
             print("[ERROR]: no such file or directory: %s" % (cur_file))
 # end of read_list
 
-def print_message(message, ftype):
+def print_message(destination, message, ftype):
     """
     The function is to generate a files containing warning/unprocessed
     messages for input files.
@@ -155,7 +148,7 @@ def print_message(message, ftype):
     out_file.close()
 # end of print_message
 
-def check_station(station):
+def check_station(destination, station):
     """
     The function is to check the station name of each record,
     if it's in the location should be discarded, print warning.
@@ -174,7 +167,7 @@ def check_station(station):
         if key in name:
             filename = station.network + station.id + '.' + station.type
             msg = filename + " was processed, but it's from " + discard[key]
-            print_message(msg, 'warning')
+            print_message(destination, msg, 'warning')
             break
 # end of check_station
 
@@ -193,8 +186,8 @@ def process_main():
     Main function for the process_smc program
     """
     # Main function
-    file_list, output_format = get_parameters()
-    read_list(file_list, output_format)
+    destination, file_list, output_format = get_parameters()
+    read_list(destination, file_list, output_format)
 
 # ============================ MAIN ==============================
 if __name__ == "__main__":

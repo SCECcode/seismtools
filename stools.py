@@ -340,3 +340,105 @@ def correct_baseline(signal):
     signal.data = signal.data - np.average(signal.data[0:int(signal.samples*0.1)])
     return signal
 # end of correct_baseline
+
+def polimod(x, y, n, m):
+    """
+    Polymod Fit polynomial to data - by J. Stewart 5/25/98
+
+    polymod(x,y,n,m) finds the coefficients of a polynomial P(x) of
+    degree n that fits the data. P(X(I))~=Y(I), in a least-squares sense
+    but the first m terms of the polynomial are neglected in forming
+    the fit (e.g. to use the squared and cubic terms in a third order
+    polynomial, which has 4 coefficients, use n=3, m=1)
+
+    The regression problem is formulated in matrix format as:
+
+    y = G*m or
+
+          3  2
+    Y = [x  x  x  1] [p3
+                      p2
+                      p1
+                      p0]
+
+    where the vector p contains the coefficients to be found. For a
+    3th order polynomial, matrix G would be:
+
+    G = [x^3 x^2 X^1 1]
+
+    where the number of rows in G equals the number of rows in x.
+    """
+    # Make sure the 2 vectors have the same size
+    if len(x) != len(y):
+        print("ERROR: X and Y vectors must be of same size!")
+        sys.exit(-1)
+
+    G = np.zeros((len(x), (n-m)))
+    for i in range(0, len(x)):
+        for j in range(0, (n-m)):
+            G[i][j] = x[i] ** (j+1+m)
+
+    # Transpose G
+    GT = G.transpose()
+    # Form solution see Section 2.2.2 of Geophysics 104 notes
+    p = np.dot(np.dot(np.linalg.inv(np.dot(GT, G)), GT), y)
+    # Polynomial coefficients are row vectors by convention
+    return p
+
+def baseline_function(acc, dt, gscale, ordern):
+    """
+    Integrates accelaration record and baseline corrects velocity and
+    displacement time series using 5th order polynomial without the constant
+    and linear term (only square, cubic, 4th and 5th order terms, so that
+    the leading constants are applied to disp, vel, and acc)
+    """
+    # Use gscale to convert to cm/sec2
+    acc = acc * gscale
+    times = np.linspace(0, (len(acc) - 1) * dt, len(acc))
+
+    # Integrate to get velocity and displacement
+    vel = np.zeros(len(acc))
+    dis = np.zeros(len(acc))
+
+    vel[0] = (acc[0]/2.0) * dt
+    for i in range(1, len(acc)):
+        vel[i] = vel[i-1] + (((acc[i-1] + acc[i]) / 2.0) * dt)
+    dis[0] = (vel[0]/2.0) * dt
+    for i in range(1, len(vel)):
+        dis[i] = dis[i-1] + (((vel[i-1] + vel[i]) / 2.0) * dt)
+
+    if ordern == 10:
+        p = polimod(times, dis, 10, 1)
+        pd = [p[8], p[7], p[6], p[5], p[4], p[3], p[2], p[1], p[0], 0.0, 0.0]
+        pv = [10*p[8], 9*p[7], 8*p[6], 7*p[5], 6*p[4], 5*p[3], 4*p[2],
+              3*p[1], 2*p[0], 0.0]
+        pa = [10*9*p[8], 9*8*p[7], 8*7*p[6], 7*6*p[5], 6*5*p[4],
+              5*4*p[3], 4*3*p[2], 3*2*p[1], 2*1*p[0]]
+    elif ordern == 5:
+        p = polimod(times, dis, 5, 1)
+        pd = [p[3], p[2], p[1], p[0], 0.0, 0.0]
+        pv = [5*p[3], 4*p[2], 3*p[1], 2*p[0], 0.0]
+        pa = [5*4*p[3], 4*3*p[2], 3*2*p[1], 2*1*p[0]]
+    elif ordern == 3:
+        p = polimod(times, dis, 3, 1)
+        pd = [p[1], p[0], 0.0, 0.0]
+        pv = [3*p[1], 2*p[0], 0.0]
+        pa = [3*2*p[1], 2*1*p[0]]
+    else:
+        print("ERROR: Baseline function use order 3, 5, or 10!")
+        sys.exit(-1)
+
+    # Evalutate polynomial correction at each time step
+    dcor = np.polyval(pd, times)
+    vcor = np.polyval(pv, times)
+    acor = np.polyval(pa, times)
+
+    # Calculate corrected timeseries
+    dmod = dis - dcor
+    vmod = vel - vcor
+    amod = acc - acor
+
+    amod = amod / gscale
+
+    return times, amod, vmod, dmod
+# end of baseline_function

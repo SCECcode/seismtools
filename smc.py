@@ -10,14 +10,6 @@ from seism import seism_record, seism_station, seism_precord
 discard = {'dam': 'Dam', 'Fire Sta': 'Fire Station',
            'Acosta Res': 'Acosta Res', 'Bldg': 'Building',
            'Br': 'Interchange Bridge'}
-destination = ''
-
-def set_destination(d):
-    """
-    The function is to set the destination variable with the user input.
-    """
-    global destination
-    destination = d
 
 def load_smc_v1(filename):
     record_list = []
@@ -293,11 +285,10 @@ def read_data(signal):
     data = np.array(data)
     return data
 
-def print_smc(station):
+def print_smc(destination, station):
     """
     The function generates .txt files for each channel/record
     """
-
     orientation = ''
 
     for record in station.list:
@@ -334,7 +325,7 @@ def print_smc(station):
         #      (os.path.join(destination, filename)))
 #end of print_smc
 
-def print_bbp(station):
+def print_bbp(destination, station):
     """
     This function generates .bbp files for
     each of velocity/acceleration/displacement
@@ -407,7 +398,7 @@ def print_bbp(station):
         #print("*Generated .bbp file at: %s" %
         #      (os.path.join(destination, filename)))
 
-def print_her(station):
+def print_her(destination, station):
     """
     The function generates .her files for each
     station (with all three channels included)

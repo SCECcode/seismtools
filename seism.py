@@ -9,7 +9,7 @@ __author__ = 'rtaborda'
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from stools import correct_baseline, scale_signal, integrate, s_filter
+from stools import correct_baseline, scale_signal, integrate, s_filter, baseline_function
 
 class seism_signal(object):
     """
@@ -793,9 +793,26 @@ class seism_station(object):
 
     def process_v2(self):
         """
-        Checks records from V2 files; rotate if necessary so the
-        horizontal channels end up N/S and E/W
+        Checks records from V2 files; perform baseline correction and then
+        rotate if necessary so the horizontal channels end up N/S and E/W
         """
+        # First we apply the baseline correction
+
+        # Use 5th order polynomial
+        order = 5
+        # Inputs are in cm/sec2, so no scaling
+        gscale = 1.0
+
+        # Apply baseline correction to all components
+        for component in range(0, len(self.list)):
+            _, new_acc, new_vel, new_dis = baseline_function(self.list[component].accel,
+                                                            self.list[component].dt,
+                                                            gscale, order)
+            self.list[component].accel = new_acc
+            self.list[component].velo = new_vel
+            self.list[component].displ = new_dis
+
+        # Now rotate the records
         record_list = self.rotate(self.list, 'v2')
         if not record_list:
             return False

@@ -485,7 +485,8 @@ def plot_stations(parameter, filenames, station1, station2):
         plt.show()
 # end of plot_stations
 
-def simple_plot(parameter, filenames, stations, output_file=''):
+def simple_plot(parameter, filenames, stations,
+                output_file='', plot_title=None):
     """
     plotting velocity for data and FAS only acceleration for Response
     """
@@ -612,9 +613,19 @@ def simple_plot(parameter, filenames, stations, output_file=''):
             axarr[i][2].plot(period, rsp, style)
 
         plt.xlim(tmin, tmax)
+
+    # Make nice plots with tight_layout
     f.tight_layout()
+
+    # Add overall title if provided
+    if plot_title is not None:
+        st = plt.suptitle(plot_title, fontsize=16)
+        # shift subplots down:
+        #st.set_y(0.95)
+        f.subplots_adjust(top=0.92)
+
     # All done
-    if not output_file:
+    if not output_file or output_file == "-":
         # Show plot
         plt.show()
     else:

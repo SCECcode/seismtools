@@ -103,7 +103,7 @@ def parse_arguments():
     This function takes care of parsing the command-line arguments and
     asking the user for any missing parameters that we need
     """
-    parser = argparse.ArgumentParser(description="Processes a numer of "
+    parser = argparse.ArgumentParser(description="Processes a number of "
                                      "timeseries files and prepares them "
                                      "for plotting.")
     parser.add_argument("--obs", dest="obs_file",

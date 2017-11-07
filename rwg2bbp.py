@@ -27,6 +27,9 @@ def get_dt(input_file):
             continue
         pieces = line.split()
         pieces = [float(piece) for piece in pieces]
+        # Skip negative data points
+        if pieces[0] < 0.0:
+            continue
         if val1 is None:
             val1 = pieces[0]
             continue
@@ -70,6 +73,9 @@ def read_rwg(input_file):
                 continue
             pieces = line.split()
             pieces = [float(piece) for piece in pieces]
+            # Skip negative data points
+            if pieces[0] < 0.0:
+                continue
             # Add values to out arrays
             time = np.append(time, pieces[0])
             vel_ns = np.append(vel_ns, pieces[1])

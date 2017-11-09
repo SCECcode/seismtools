@@ -486,7 +486,7 @@ def plot_stations(parameter, filenames, station1, station2):
 # end of plot_stations
 
 def simple_plot(parameter, filenames, stations,
-                output_file='', plot_title=None):
+                output_file, plot_title=None):
     """
     plotting velocity for data and FAS only acceleration for Response
     """
@@ -624,14 +624,17 @@ def simple_plot(parameter, filenames, stations,
         #st.set_y(0.95)
         f.subplots_adjust(top=0.92)
 
-    # All done
-    if not output_file or output_file == "-":
-        # Show plot
-        plt.show()
+    # All done, save plot
+    if output_file.lower().endswith(".png"):
+        fmt='png'
+    elif output_file.lower().endswith(".pdf"):
+        fmt='pdf'
     else:
-        # Save plot
-        plt.savefig(output_file, format='png',
-                    transparent=False, dpi=300)
+        print("ERROR: Unknown format!")
+        sys.exit(-1)
+
+    plt.savefig(output_file, format=fmt,
+                transparent=False, dpi=300)
 # end of simple_plot
 
 def compare_txt(parameter, file1, file2):
@@ -651,7 +654,7 @@ def compare_txt(parameter, file1, file2):
     plot_signals(parameter, filenames, signal1, signal2)
 # end of compare_txt
 
-def compare_her(parameter, file1, file2, s_flag):
+def compare_her(parameter, file1, file2, s_flag, output_file=None):
     if not parameter:
         print("[ERROR]: error with parameters for ploting and computing.")
         return
@@ -667,7 +670,7 @@ def compare_her(parameter, file1, file2, s_flag):
 
     # calling simple compare
     if s_flag:
-        simple_plot(parameter, filenames, [station1, station2])
+        simple_plot(parameter, filenames, [station1, station2], output_file)
     else:
         plot_stations(parameter, filenames, station1, station2)
 # end of compare_her

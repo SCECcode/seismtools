@@ -9,10 +9,10 @@ import os
 import sys
 import argparse
 
-from ptools import get_bands, read_file, print_bbp, filter_data, \
-    read_stamp, check_data, read_unit_bbp, synchronize_all_stations
+from file_utilities import print_bbp, read_stamp, read_files
+from ptools import get_bands, filter_data, check_data, synchronize_all_stations
 from gof_data_sim import get_dt, get_azimuth, get_leading, get_earthq, \
-    get_fmax, rotate, scale_from_m_to_cm, process_signal_dt, reverse_up_down
+    get_fmax, rotate, process_signal_dt
 
 def get_out():
     """
@@ -184,53 +184,6 @@ def parse_arguments():
         params['leading'] = args.leading
 
     return obs_file, files, params
-
-def read_files(obs_file, input_files):
-    """
-    Reads all input files
-    """
-    # read obs data
-    obs_data = None
-    if obs_file is not None:
-        obs_data = read_file(obs_file)
-        # Make sure we got it
-        if not obs_data:
-            print("[ERROR]: Reading obs file: %s!" % (obs_file))
-            sys.exit(-1)
-        # Fix units if needed
-        if obs_file.lower().endswith(".bbp"):
-            units = read_unit_bbp(obs_file)
-            # If in meters, scale to cm
-            if units == "m":
-                obs_data = scale_from_m_to_cm(obs_data)
-        else:
-            # In Hercule files, for observation files data is already in
-            # cm, so nothing to do here!
-            #obs_data = reverse_up_down(obs_data)
-            pass
-
-    # reads signals
-    stations = []
-    for input_file in input_files:
-        station = read_file(input_file)
-        # Make sure we got it
-        if not station:
-            print("[ERROR]: Reading input file: %s!" % (input_file))
-            sys.exit(-1)
-        # Fix units if needed
-        if input_file.lower().endswith(".bbp"):
-            units = read_unit_bbp(input_file)
-            # If in meters, scale to cm
-            if units == "m":
-                station = scale_from_m_to_cm(station)
-        else:
-            # Hercule file, need to scale and flip up/down component
-            station = scale_from_m_to_cm(station)
-            station = reverse_up_down(station)
-        stations.append(station)
-
-    # all done
-    return obs_data, stations
 
 def process_main():
     """

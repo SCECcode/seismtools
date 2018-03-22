@@ -6,14 +6,13 @@
 """
 from __future__ import division, print_function
 import os
-import sys
 import argparse
 from math import radians, cos, sin, asin, sqrt
 
 import matplotlib as mpl
 if mpl.get_backend() != 'agg':
     mpl.use('Agg') # Disables use of Tk/X11
-from ptools import read_file
+from file_utilities import read_file
 from compare_signals import simple_plot, set_parameter
 
 def calculate_distance(epicenter, st_loc):

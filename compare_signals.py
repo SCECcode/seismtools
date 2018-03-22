@@ -626,9 +626,9 @@ def simple_plot(parameter, filenames, stations,
 
     # All done, save plot
     if output_file.lower().endswith(".png"):
-        fmt='png'
+        fmt = 'png'
     elif output_file.lower().endswith(".pdf"):
-        fmt='pdf'
+        fmt = 'pdf'
     else:
         print("ERROR: Unknown format!")
         sys.exit(-1)

@@ -10,20 +10,18 @@ from __future__ import division, print_function
 
 import os
 import sys
-import copy
 import glob
 import math
 import argparse
 import numpy as np
 
-from process_timeseries import read_files, process
-from ptools import read_filelist, get_bands, read_stamp, check_data, read_file, \
-    print_her
-from gof_engine import print_scores, set_labels, set_mlabels, scores_matrix, \
-    filter_data, print_matrix, parameter_to_list
+from process_timeseries import process
+from file_utilities import read_filelist, read_files
+from ptools import get_bands
+from gof_engine import print_scores, set_labels, set_mlabels, \
+    scores_matrix, print_matrix, parameter_to_list
 from gof_data_sim import get_dt, get_azimuth, get_leading, get_earthq, \
-    get_fmax, rotate, synchronize, scale_from_m_to_cm, process_dt, \
-    reverse_up_down
+    get_fmax
 
 np.seterr(divide='ignore', invalid='ignore')
 
